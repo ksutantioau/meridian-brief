@@ -340,6 +340,7 @@ textarea{resize:vertical;min-height:64px}
           <div class="alert alert-success"><i class="ti ti-circle-check"></i> Brief generated — download and finalise in Word.</div>
           <div class="brief-preview" id="brief-preview"></div>
           <div class="action-bar" style="margin-top:1rem">
+            <button class="btn" id="pdf-btn" onclick="openPrintPreview()" style="border:1px solid var(--border)"><i class="ti ti-file-type-pdf"></i> Preview &amp; Save PDF</button>
             <button class="btn btn-primary" id="dl-btn" onclick="downloadDocx()"><i class="ti ti-download"></i> Download .docx</button>
           </div>
         </div>
@@ -364,7 +365,7 @@ const CHARTS = {
 const PERSONAS = {
   sarah: {
     name:'Sarah Chen', role:'Equities & Balanced', initials:'SC',
-    accent:'#185FA5', accentLight:'#E6F1FB', accentText:'#0C447C',
+    accent:'#185FA5', accentMid:'#3a74b8', accentPale:'#E6F1FB', accentLight:'#E6F1FB', accentText:'#0C447C', inception:'+34.2%', riskProfile:'Balanced',
     focus:'Equities & balanced portfolios',
     client:{name:'Harrison James',wb:'Harrison_James_June2026.xlsx',value:'$842,500 AUD',mtd:'+2.3%',ytd:'+8.7%',bench:'+6.2%',benchName:'ASX 200',alpha:'+2.5%',risk:'Balanced',goals:'Preserve capital while growing retirement income. Target $1M by 2028.'},
     holdings:[
@@ -400,7 +401,7 @@ const PERSONAS = {
   },
   john: {
     name:'John Mitchell', role:'Property & REITs', initials:'JM',
-    accent:'#0F6E56', accentLight:'#E1F5EE', accentText:'#085041',
+    accent:'#0F6E56', accentMid:'#2a8a6e', accentPale:'#E1F5EE', accentLight:'#E1F5EE', accentText:'#085041', inception:'+41.7%', riskProfile:'Income',
     focus:'Property & REIT portfolios',
     client:{name:'Margaret Osei',wb:'Osei_Margaret_June2026.xlsx',value:'$1,240,000 AUD',mtd:'+1.8%',ytd:'+6.4%',bench:'+4.1%',benchName:'S&P/ASX 300 A-REIT',alpha:'+2.3%',risk:'Income-focused',goals:'Generate stable rental yield income. Target 6.5% annual distribution yield.'},
     holdings:[
@@ -633,6 +634,52 @@ function showDone(){
       <div style="font-size:10.5px;color:#888;text-align:right;max-width:280px">${signoff}<br>For informational purposes only. Not financial advice.</div>
     </div>`;
   document.getElementById('dl-btn').style.background=p.accent;
+}
+
+async function openPrintPreview(){
+  const btn = document.getElementById('pdf-btn');
+  btn.disabled = true;
+  btn.innerHTML = '<i class="ti ti-loader"></i> Opening...';
+
+  try {
+    const p = PERSONAS[currentPersona];
+    const cl = p.client;
+    const stance = document.getElementById('p-stance').value;
+    const signoff = document.getElementById('p-signoff').value || p.defaultSignoff;
+    const month = document.getElementById('f-month').value;
+
+    const photoB64 = currentPersona==='sarah' ? PHOTOS.sarah.split('base64,')[1] : PHOTOS.john.split('base64,')[1];
+    const donutB64 = currentPersona==='sarah' ? CHARTS.sarah_donut.split('base64,')[1] : CHARTS.john_donut.split('base64,')[1];
+    const lineB64  = currentPersona==='sarah' ? CHARTS.sarah_line.split('base64,')[1]  : CHARTS.john_line.split('base64,')[1];
+
+    const payload = {
+      persona: currentPersona,
+      accent: p.accent, accentMid: p.accentMid, accentPale: p.accentPale,
+      briefTitle: p.briefTitle,
+      clientName: cl.name, adviserName: p.name, adviserRole: p.role,
+      month, portfolioValue: cl.value,
+      mtd: cl.mtd, ytd: cl.ytd, alpha: cl.alpha, benchName: cl.benchName,
+      inception: p.inception, riskProfile: p.riskProfile,
+      lineTitle: p.lineTitle,
+      donutSrc: 'data:image/png;base64,' + donutB64,
+      lineSrc:  'data:image/png;base64,' + lineB64,
+      holdings: p.holdings, marketBoxes: p.marketBoxes,
+      narrative: p.narrative(stance), actions: p.actions,
+      avatarSrc: 'data:image/webp;base64,' + photoB64,
+      signoff,
+    };
+
+    const win = window.open('print.html', '_blank');
+    win.addEventListener('load', () => win.postMessage({ type: 'MERIDIAN_BRIEF', payload }, '*'));
+  } catch(err){
+    console.error(err);
+    alert('Error opening PDF preview: ' + err.message);
+  } finally {
+    const btn = document.getElementById('pdf-btn');
+    btn.disabled = false;
+    btn.style.background = PERSONAS[currentPersona].accent;
+    btn.innerHTML = '<i class="ti ti-file-type-pdf"></i> Preview & Save PDF';
+  }
 }
 
 async function downloadDocx(){
